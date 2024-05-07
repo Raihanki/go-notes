@@ -7,8 +7,10 @@ import (
 )
 
 type MainConfig struct {
-	APP_NAME string
-	APP_PORT string
+	APP_NAME         string
+	APP_PORT         string
+	APP_BACKEND_URL  string
+	APP_FRONTEND_URL string
 
 	DB_DIALECT  string
 	DB_HOST     string

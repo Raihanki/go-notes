@@ -6,6 +6,7 @@ import (
 	"github.com/Raihanki/go-notes/config"
 	"github.com/Raihanki/go-notes/routes"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -13,6 +14,9 @@ func main() {
 	config.ConnectDB()
 
 	app := fiber.New(fiber.Config{})
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: config.ENV.APP_FRONTEND_URL,
+	}))
 	routes.Router(app)
 
 	errListen := app.Listen("localhost:" + config.ENV.APP_PORT)

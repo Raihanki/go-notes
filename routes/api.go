@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/Raihanki/go-notes/controllers"
+	"github.com/Raihanki/go-notes/middleware"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -16,15 +17,16 @@ func Router(app *fiber.App) {
 	// user routes
 	userController := controllers.NewUserController()
 	userRoute := api.Group("/users")
-	userRoute.Post("/register", userController.Register)
-	userRoute.Post("/login", userController.Login)
+	userRoute.Get("/", middleware.Auth, userController.Show)
+	userRoute.Post("/register", middleware.Guest, userController.Register)
+	userRoute.Post("/login", middleware.Guest, userController.Login)
 
 	// note routes
 	noteController := controllers.NewNoteController()
 	noteRoute := api.Group("/notes")
 	noteRoute.Get("/", noteController.Index)
-	noteRoute.Post("/", noteController.Store)
+	noteRoute.Post("/", middleware.Auth, noteController.Store)
 	noteRoute.Get("/:id", noteController.Show)
-	noteRoute.Put("/:id", noteController.Update)
-	noteRoute.Delete("/:id", noteController.Destroy)
+	noteRoute.Put("/:id", middleware.Auth, noteController.Update)
+	noteRoute.Delete("/:id", middleware.Auth, noteController.Destroy)
 }

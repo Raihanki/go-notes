@@ -16,6 +16,8 @@ type MainConfig struct {
 	DB_USERNAME string
 	DB_PASSWORD string
 	DB_NAME     string
+
+	JWT_SECRET string
 }
 
 var ENV *MainConfig

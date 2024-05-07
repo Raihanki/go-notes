@@ -7,6 +7,12 @@ type ApiResponse struct {
 	Data    interface{} `json:"data"`
 }
 
+type ErrorResponse struct {
+	FailedField string      `json:"key"`
+	Tag         string      `json:"tag"`
+	Message     interface{} `json:"message"`
+}
+
 func Response(ctx *fiber.Ctx, statusCode int, message string, data interface{}) error {
 	response := ApiResponse{
 		Message: message,

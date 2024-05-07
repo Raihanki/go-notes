@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 
+	"github.com/go-playground/validator/v10"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
@@ -82,15 +83,31 @@ func (controller *NoteController) Show(ctx *fiber.Ctx) error {
 }
 
 func (controller *NoteController) Store(ctx *fiber.Ctx) error {
+	// authenticated user
+	authUser := ctx.Locals("user").(resources.UserResource)
+
 	noteRequest := new(request.NoteRequest)
 	err := ctx.BodyParser(noteRequest)
 	if err != nil {
 		return helpers.Response(ctx, fiber.StatusUnprocessableEntity, "Unprocessable Entity", nil)
 	}
 
+	errValidate := validator.New().Struct(noteRequest)
+	if errValidate != nil {
+		var errorResponse []helpers.ErrorResponse
+		for _, err := range errValidate.(validator.ValidationErrors) {
+			errorResponse = append(errorResponse, helpers.ErrorResponse{
+				FailedField: err.Field(),
+				Tag:         err.Tag(),
+				Message:     err.Error(),
+			})
+		}
+		return helpers.Response(ctx, fiber.StatusUnprocessableEntity, "Unprocessable Entity", errorResponse)
+	}
+
 	// todo user from auth
 	user := models.User{}
-	errUser := config.DB.Where("id = ?", 6).First(&user).Error
+	errUser := config.DB.Where("id = ?", authUser.ID).First(&user).Error
 	if errors.Is(errUser, gorm.ErrRecordNotFound) {
 		return helpers.Response(ctx, fiber.StatusNotFound, "User not found", nil)
 	}
@@ -140,12 +157,28 @@ func (controller *NoteController) Store(ctx *fiber.Ctx) error {
 }
 
 func (controller *NoteController) Update(ctx *fiber.Ctx) error {
+	//authenticated user
+	authUser := ctx.Locals("user").(resources.UserResource)
+
 	idNote := ctx.Params("id")
 
-	noteReqeust := new(request.NoteRequest)
-	err := ctx.BodyParser(noteReqeust)
+	noteReqeust := request.NoteRequest{}
+	err := ctx.BodyParser(&noteReqeust)
 	if err != nil {
 		return helpers.Response(ctx, fiber.StatusUnprocessableEntity, "Unprocessable Entity", nil)
+	}
+
+	errValidate := validator.New().Struct(noteReqeust)
+	if errValidate != nil {
+		var errorResponse []helpers.ErrorResponse
+		for _, err := range errValidate.(validator.ValidationErrors) {
+			errorResponse = append(errorResponse, helpers.ErrorResponse{
+				FailedField: err.Field(),
+				Tag:         err.Tag(),
+				Message:     err.Error(),
+			})
+		}
+		return helpers.Response(ctx, fiber.StatusUnprocessableEntity, "Unprocessable Entity", errorResponse)
 	}
 
 	note := models.Note{}
@@ -158,15 +191,19 @@ func (controller *NoteController) Update(ctx *fiber.Ctx) error {
 		return helpers.Response(ctx, fiber.StatusInternalServerError, "Failed to fetch note", nil)
 	}
 
-	//todo athorization
 	user := models.User{}
-	errUser := config.DB.Where("id = ?", 6).First(&user).Error
+	errUser := config.DB.Where("id = ?", authUser.ID).First(&user).Error
 	if errors.Is(errUser, gorm.ErrRecordNotFound) {
 		return helpers.Response(ctx, fiber.StatusNotFound, "User not found", nil)
 	}
 	if errUser != nil {
 		log.Error("Error fetching user : " + errUser.Error())
 		return helpers.Response(ctx, fiber.StatusInternalServerError, "Failed to fetch user", nil)
+	}
+
+	// authorization user
+	if note.UserID != user.ID {
+		return helpers.Response(ctx, fiber.StatusForbidden, "Access Forbidden", nil)
 	}
 
 	topic := models.Topic{}
@@ -193,10 +230,13 @@ func (controller *NoteController) Update(ctx *fiber.Ctx) error {
 }
 
 func (controller *NoteController) Destroy(ctx *fiber.Ctx) error {
+	//authenticated user
+	authUser := ctx.Locals("user").(resources.UserResource)
+
 	idNote := ctx.Params("id")
 
 	note := models.Note{}
-	result := config.DB.Where("id = ?", idNote).Delete(&note)
+	result := config.DB.Where("id = ?", idNote).Where("user_id = ?", authUser.ID).Delete(&note)
 	if result.RowsAffected == 0 {
 		return helpers.Response(ctx, fiber.StatusNotFound, "Note not found", nil)
 	}
